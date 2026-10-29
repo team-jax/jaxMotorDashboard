@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="description" content="JAX 로봇의 목표 자세 미리보기와 모터 제어를 위한 시뮬레이션 대시보드">
-<title>JAX Control Panel · 로봇 제어</title><link rel="stylesheet" href="style.css">
+<title>JAX Control Panel · 로봇 제어</title><link rel="stylesheet" href="style.css?v=20261029-angle-input-2">
 <script type="importmap">{"imports":{"three":"./vendor/three/three.module.js","three/addons/":"./vendor/three/addons/"}}</script>
 </head>
 <body>
@@ -17,4 +17,4 @@
 <section class="panel telemetry-panel"><div class="panel-title"><h2>모터 상태 모니터링 <span id="telemetry-name">AK45-1</span></h2><span class="panel-subtitle" id="telemetry-source">모의 피드백 · 최근 30초</span><button id="reset-charts" class="text-button">그래프 초기화</button></div><div id="ak-telemetry"><div class="telemetry-values" id="telemetry-values"></div><div class="chart-options" id="chart-options" aria-label="그래프 표시 선택"></div><div class="charts" id="charts"></div></div><div id="servo-telemetry" class="servo-telemetry" hidden><div><span>모터 ID</span><strong id="servo-id">0</strong></div><div><span>설정한 목표 각도</span><strong id="servo-target">0°</strong></div><div><span>PWM 펄스폭</span><strong>정보 없음</strong><small>PWM 변환 규칙 미제공</small></div><div><span>제어 상태</span><strong id="servo-state">전송 가능</strong></div><p>STM32 서보는 실제 각도·속도·전류·온도 피드백이 제공되지 않습니다. 목표 각도는 실제 도달 위치를 의미하지 않습니다.</p></div></section>
 </main><footer><span>JAX Control Panel <b>v1.0</b> · 프론트엔드 프로토타입</span><span>모터 14개 · URDF 링크 16개 · <span id="footer-state">모의 제어 준비됨</span></span></footer>
 <div id="toasts" aria-live="polite"></div><dialog id="batch-dialog"><form method="dialog" class="dialog-heading"><h2>여러 모터의 목표 설정</h2><button aria-label="닫기">✕</button></form><p>각도를 입력해 목표 자세를 함께 미리 보세요. 전송은 아래 버튼을 눌러야 적용됩니다.</p><div id="batch-fields"></div><p id="batch-error" class="input-error" role="alert"></p><div class="dialog-actions"><button id="batch-stop" class="danger">■ 긴급 정지</button><button id="batch-preview">목표 자세에 적용</button><button id="batch-send" class="primary">전체 모의 명령 전송</button></div></dialog>
-<script type="module" src="app.js"></script></body></html>
+<script type="module" src="app.js?v=20261029-angle-input-2"></script></body></html>

@@ -8,7 +8,7 @@ Team JAX의 로봇 제어 UI 프로토타입입니다. AK45 4개와 STM32 서보
 npm run dev
 ```
 
-http://localhost:5173 에서 확인합니다. Python 3와 최신 WebGL 지원 브라우저가 필요합니다. 실행 시 패키지 설치나 인터넷 연결은 필요하지 않습니다. Three.js 0.180.0과 로더를 `dist/vendor/three`에 포함했습니다. 의존성을 다시 설치할 때는 `npm ci`를 사용합니다.
+http://localhost:5173 에서 확인합니다. 개발 서버는 캐시를 비활성화해 수정한 JavaScript가 이전 버전으로 남지 않게 합니다. Python 3와 최신 WebGL 지원 브라우저가 필요합니다. 실행 시 패키지 설치나 인터넷 연결은 필요하지 않습니다. Three.js 0.180.0과 로더를 `dist/vendor/three`에 포함했습니다. 의존성을 다시 설치할 때는 `npm ci`를 사용합니다.
 
 ## 사용 순서
 

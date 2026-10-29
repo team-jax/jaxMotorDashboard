@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {ColladaLoader} from 'three/addons/loaders/ColladaLoader.js';
-import {applyUrdfOrigin as applyOrigin,applyJointAngle} from './kinematics.js';
+import {applyUrdfOrigin as applyOrigin,applyJointAngle} from './kinematics.js?v=20261029-angle-input-2';
 
 export async function createViewer(container,model,onPick){
  const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setClearColor(0x101622,0);renderer.outputColorSpace=THREE.SRGBColorSpace;container.append(renderer.domElement);renderer.domElement.setAttribute('aria-label','JAX V2 로봇 3D 모델. 드래그로 시점 회전, 휠로 확대합니다. 관절 연결은 오른쪽 선택창에서도 설정할 수 있습니다.');
