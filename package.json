@@ -1,1 +1,15 @@
-{"name":"jax-motor-dashboard","version":"1.0.0","private":true,"scripts":{"dev":"python3 -m http.server 5173 --directory dist","start":"python3 -m http.server 5173 --directory dist","check":"node --check dist/app.js"}}
+{
+  "name": "jax-motor-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "python3 -m http.server 5173 --directory dist",
+    "start": "python3 -m http.server 5173 --directory dist",
+    "check": "node --check dist/app.js && node --check dist/state.js && node --check dist/viewer.js && node --check dist/charts.js && node --check dist/kinematics.js",
+    "test": "node --test tests/*.test.js"
+  },
+  "dependencies": {
+    "three": "^0.180.0"
+  },
+  "type": "module"
+}
