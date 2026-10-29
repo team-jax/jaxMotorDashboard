@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {createMotors,limitsFor,inRange,send,tickMotor,statusOf} from '../dist/state.js';
+import {createMotors,limitsFor,inRange,send,tickMotor,statusOf,canEdit,canSend} from '../dist/state.js';
 function connected(){const motors=createMotors();motors.forEach((m,i)=>m.joint='test-joint-'+i);return motors;}
 const model=JSON.parse(fs.readFileSync(new URL('../dist/models/jax/model.json',import.meta.url)));
 test('14 motors have no guessed URDF mapping or fabricated servo feedback',()=>{const m=createMotors();assert.equal(m.length,14);assert.equal(m.filter(m=>m.type==='ak').length,4);assert.equal(m.filter(m=>m.type==='servo').length,10);assert(m.every(m=>m.joint===''));assert(m.filter(m=>m.type==='servo').every(m=>m.current===null));});
@@ -14,3 +14,5 @@ test('import retains 16 links, 14 revolute joints, valid tree and mesh files',()
 test('URDF angular limits are converted to degrees without exceeding raw limits',()=>{for(const j of model.joints.filter(j=>j.type==='revolute')){const limits=limitsFor(j);assert(limits.min<=limits.max);assert(limits.min*Math.PI/180>=j.limit.lower-1e-6);assert(limits.max*Math.PI/180<=j.limit.upper+1e-6);}});
 
 test('unmapped motors cannot send a false movement success',()=>{const m=createMotors()[0];m.draft=12;const result=send(m,false);assert.equal(result.ok,false);assert.match(result.message,/관절/);assert.equal(m.sent,null);});
+
+test('unmapped motor allows editing but not sending; stop and faults still lock input',()=>{const m=createMotors()[0];assert(canEdit(m,false));assert(!canSend(m,false));assert(!canEdit(m,true));for(const scenario of ['offline','error']){m.scenario=scenario;assert(!canEdit(m,false));}m.scenario='normal';m.joint='test';assert(canSend(m,false));});
