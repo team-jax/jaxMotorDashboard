@@ -1,0 +1,1 @@
+{"name":"jax-motor-dashboard","version":"1.0.0","private":true,"scripts":{"dev":"python3 -m http.server 5173 --directory dist","start":"python3 -m http.server 5173 --directory dist","check":"node --check dist/app.js"}}
