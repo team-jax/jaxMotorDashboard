@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {createMotors,limitsFor,inRange,send,tickMotor,statusOf,canEdit,canSend} from '../dist/state.js';
+import {createMotors,limitsFor,inRange,send,tickMotor,statusOf,canEdit,canSend,createJointControls} from '../dist/state.js';
 function connected(){const motors=createMotors();motors.forEach((m,i)=>m.joint='test-joint-'+i);return motors;}
 const model=JSON.parse(fs.readFileSync(new URL('../dist/models/jax/model.json',import.meta.url)));
 test('14 motors have no guessed URDF mapping or fabricated servo feedback',()=>{const m=createMotors();assert.equal(m.length,14);assert.equal(m.filter(m=>m.type==='ak').length,4);assert.equal(m.filter(m=>m.type==='servo').length,10);assert(m.every(m=>m.joint===''));assert(m.filter(m=>m.type==='servo').every(m=>m.current===null));});
@@ -16,3 +16,5 @@ test('URDF angular limits are converted to degrees without exceeding raw limits'
 test('unmapped motors cannot send a false movement success',()=>{const m=createMotors()[0];m.draft=12;const result=send(m,false);assert.equal(result.ok,false);assert.match(result.message,/관절/);assert.equal(m.sent,null);});
 
 test('unmapped motor allows editing but not sending; stop and faults still lock input',()=>{const m=createMotors()[0];assert(canEdit(m,false));assert(!canSend(m,false));assert(!canEdit(m,true));for(const scenario of ['offline','error']){m.scenario=scenario;assert(!canEdit(m,false));}m.scenario='normal';m.joint='test';assert(canSend(m,false));});
+
+test('URDF controls use every real revolute joint directly, with no hardware mapping step',()=>{const controls=createJointControls(model);assert.equal(controls.length,14);assert.equal(new Set(controls.map(c=>c.joint)).size,14);for(const c of controls){assert(canEdit(c,false));assert(canSend(c,false));assert(model.joints.some(j=>j.name===c.joint&&j.type==='revolute'));assert(inRange(c,c.draft));}const elbow=controls.find(c=>c.joint==='upper_arm_to_under_arm');elbow.draft=60;assert(send(elbow,false).ok);for(let i=0;i<100;i++)tickMotor(elbow,.1,false);assert.equal(elbow.current,60);assert.equal(elbow.status,'reached');});
