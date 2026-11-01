@@ -11,16 +11,17 @@ export function canSend(m,stopped){return !!m.joint&&canEdit(m,stopped);}
 export function send(m,stopped){if(!m.joint)return {ok:false,message:'먼저 모터에 대응하는 3D 관절을 연결하세요. 연결 전에는 모델을 움직일 수 없습니다.'};if(!canSend(m,stopped))return {ok:false,message:stopped?'긴급 정지 중에는 전송할 수 없습니다.':m.scenario==='offline'?'모터 연결이 끊겼습니다.':'모터 오류를 해제한 뒤 다시 시도하세요.'};if(!inRange(m,m.draft))return {ok:false,message:'목표 각도가 허용 범위를 벗어났습니다.'};if(m.scenario==='failure'){m.error='명령 전송 실패';return {ok:false,message:`${m.name} 명령 전송에 실패했습니다. 다시 시도하세요.`};}m.error='';m.sent=round(m.draft);m.motion=m.type==='servo'?null:{from:m.current,to:m.sent,elapsed:0,duration:Math.max(.35,Math.abs(m.sent-m.current)*1.875/18)};m.status=m.type==='servo'?'sent':Math.abs(m.current-m.sent)<1e-9?'reached':'moving';return {ok:true,message:m.type==='servo'?`${m.name} 목표 ${m.sent.toFixed(1)}° 전송 완료 · 실제 도달 여부는 알 수 없습니다.`:`${m.name} → ${m.sent.toFixed(1)}° 모의 명령을 전송했습니다.`};}
 // Model trajectory: quintic easing has zero velocity and acceleration at both ends.
 // Keep full precision internally; round only the numbers displayed in the UI.
-export function tickMotor(m,dt,stopped){
+export function tickMotor(m,dt,stopped,speedScale=1){
+ const rate=Number.isFinite(speedScale)?Math.min(2,Math.max(.1,speedScale)):1;
  let reached=false;
  m.angularVelocity=0;
  if(!stopped&&m.scenario==='normal'&&m.status==='moving'&&m.motion){
   const motion=m.motion;
-  motion.elapsed=Math.min(motion.duration,motion.elapsed+Math.max(0,dt));
+  motion.elapsed=Math.min(motion.duration,motion.elapsed+Math.max(0,dt)*rate);
   const t=motion.elapsed/motion.duration;
   const eased=t*t*t*(10+t*(-15+6*t));
   m.current=motion.from+(motion.to-motion.from)*eased;
-  m.angularVelocity=(motion.to-motion.from)*30*t*t*(1-t)*(1-t)/motion.duration;
+  m.angularVelocity=(motion.to-motion.from)*30*t*t*(1-t)*(1-t)/motion.duration*rate;
   if(t>=1){m.current=motion.to;m.status='reached';m.motion=null;m.angularVelocity=0;reached=true;}
  }
  // ERPM remains explicitly synthetic; it is not a physical angular-speed conversion.

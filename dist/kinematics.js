@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {radians} from './state.js?v=20261102-smooth-motion-1';
+import {radians} from './state.js?v=20261102-speed-control-1';
 
 // URDF origin uses fixed-axis roll, pitch, yaw: Rz(yaw) * Ry(pitch) * Rx(roll).
 export function applyUrdfOrigin(object,{xyz,rpy}){
