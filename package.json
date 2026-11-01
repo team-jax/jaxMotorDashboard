@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "python3 scripts/dev-server.py",
     "start": "python3 scripts/dev-server.py",
-    "check": "node --check dist/app.js && node --check dist/state.js && node --check dist/viewer.js && node --check dist/charts.js && node --check dist/kinematics.js",
+    "check": "node --check dist/app.js && node --check dist/state.js && node --check dist/viewer.js && node --check dist/charts.js && node --check dist/kinematics.js && node --check dist/sequence.js && node --check dist/sequence-ui.js",
     "test": "node --test tests/*.test.js"
   },
   "dependencies": {
