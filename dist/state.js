@@ -8,9 +8,27 @@ export function inRange(m,value){return value!==''&&Number.isFinite(Number(value
 export function clamp(m,n){return round(Math.min(m.max,Math.max(m.min,n)));}
 export function canEdit(m,stopped){return !stopped&&m.scenario!=='offline'&&m.scenario!=='error';}
 export function canSend(m,stopped){return !!m.joint&&canEdit(m,stopped);}
-export function send(m,stopped){if(!m.joint)return {ok:false,message:'먼저 모터에 대응하는 3D 관절을 연결하세요. 연결 전에는 모델을 움직일 수 없습니다.'};if(!canSend(m,stopped))return {ok:false,message:stopped?'긴급 정지 중에는 전송할 수 없습니다.':m.scenario==='offline'?'모터 연결이 끊겼습니다.':'모터 오류를 해제한 뒤 다시 시도하세요.'};if(!inRange(m,m.draft))return {ok:false,message:'목표 각도가 허용 범위를 벗어났습니다.'};if(m.scenario==='failure'){m.error='명령 전송 실패';return {ok:false,message:`${m.name} 명령 전송에 실패했습니다. 다시 시도하세요.`};}m.error='';m.sent=round(m.draft);m.status=m.type==='servo'?'sent':Math.abs(m.current-m.sent)<.05?'reached':'moving';return {ok:true,message:m.type==='servo'?`${m.name} 목표 ${m.sent.toFixed(1)}° 전송 완료 · 실제 도달 여부는 알 수 없습니다.`:`${m.name} → ${m.sent.toFixed(1)}° 모의 명령을 전송했습니다.`};}
-export function tickMotor(m,dt,stopped){let reached=false;if(!stopped&&m.scenario==='normal'&&m.status==='moving'){const diff=m.sent-m.current;const step=dt*7;m.current=round(Math.abs(diff)<=step?m.sent:m.current+Math.sign(diff)*step);if(Math.abs(m.current-m.sent)<.05){m.current=m.sent;m.status='reached';reached=true;}}
- m.speed=!stopped&&m.status==='moving'&&m.scenario==='normal'?Math.sign(m.sent-m.current)*420:0;m.amps=m.speed?1.8:0.12;m.temp=round(m.temp+(m.speed?dt*.04:-(m.temp-26)*dt*.015));return reached;}
+export function send(m,stopped){if(!m.joint)return {ok:false,message:'먼저 모터에 대응하는 3D 관절을 연결하세요. 연결 전에는 모델을 움직일 수 없습니다.'};if(!canSend(m,stopped))return {ok:false,message:stopped?'긴급 정지 중에는 전송할 수 없습니다.':m.scenario==='offline'?'모터 연결이 끊겼습니다.':'모터 오류를 해제한 뒤 다시 시도하세요.'};if(!inRange(m,m.draft))return {ok:false,message:'목표 각도가 허용 범위를 벗어났습니다.'};if(m.scenario==='failure'){m.error='명령 전송 실패';return {ok:false,message:`${m.name} 명령 전송에 실패했습니다. 다시 시도하세요.`};}m.error='';m.sent=round(m.draft);m.motion=m.type==='servo'?null:{from:m.current,to:m.sent,elapsed:0,duration:Math.max(.35,Math.abs(m.sent-m.current)*1.875/18)};m.status=m.type==='servo'?'sent':Math.abs(m.current-m.sent)<1e-9?'reached':'moving';return {ok:true,message:m.type==='servo'?`${m.name} 목표 ${m.sent.toFixed(1)}° 전송 완료 · 실제 도달 여부는 알 수 없습니다.`:`${m.name} → ${m.sent.toFixed(1)}° 모의 명령을 전송했습니다.`};}
+// Model trajectory: quintic easing has zero velocity and acceleration at both ends.
+// Keep full precision internally; round only the numbers displayed in the UI.
+export function tickMotor(m,dt,stopped){
+ let reached=false;
+ m.angularVelocity=0;
+ if(!stopped&&m.scenario==='normal'&&m.status==='moving'&&m.motion){
+  const motion=m.motion;
+  motion.elapsed=Math.min(motion.duration,motion.elapsed+Math.max(0,dt));
+  const t=motion.elapsed/motion.duration;
+  const eased=t*t*t*(10+t*(-15+6*t));
+  m.current=motion.from+(motion.to-motion.from)*eased;
+  m.angularVelocity=(motion.to-motion.from)*30*t*t*(1-t)*(1-t)/motion.duration;
+  if(t>=1){m.current=motion.to;m.status='reached';m.motion=null;m.angularVelocity=0;reached=true;}
+ }
+ // ERPM remains explicitly synthetic; it is not a physical angular-speed conversion.
+ m.speed=m.angularVelocity?m.angularVelocity/18*420:0;
+ m.amps=m.speed?1.8:0.12;
+ m.temp=m.temp+(m.speed?dt*.04:-(m.temp-26)*dt*.015);
+ return reached;
+}
 export function statusOf(m,stopped){if(stopped)return '긴급 정지';if(m.scenario==='offline')return '연결 끊김';if(m.scenario==='error')return '모터 오류';if(m.error)return m.error;return {idle:'대기 중',moving:'이동 중',reached:'이동 완료',sent:'전송 완료 · 위치 미확인'}[m.status];}
 
 export function createJointControls(model,labels={}){return model.joints.filter(j=>j.type==='revolute').map((joint,index)=>{const limits=limitsFor(joint);const initial=Math.max(limits.min,Math.min(limits.max,0));return {name:labels[joint.name]??joint.child,type:'model',id:index,joint:joint.name,current:initial,draft:initial,sent:null,...limits,status:'idle',scenario:'normal',error:'',speed:0,amps:0,temp:26,history:[]};});}
