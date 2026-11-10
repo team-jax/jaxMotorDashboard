@@ -3,7 +3,7 @@ import json, shutil, sys
 from pathlib import Path
 import xml.etree.ElementTree as ET
 source = Path(sys.argv[1])
-out = Path(__file__).resolve().parents[1] / 'dist/models/jax'
+out = Path(__file__).resolve().parents[1] / 'public/models/jax'
 out.mkdir(parents=True, exist_ok=True)
 urdf = source / 'urdf/JAXV2_Assembly.urdf'
 root = ET.parse(urdf).getroot()

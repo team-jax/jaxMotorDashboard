@@ -1,0 +1,160 @@
+import type { RobotModel, Motor, Scenario } from "../src/domain/types";
+import test from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import {
+  createMotors,
+  limitsFor,
+  inRange,
+  send,
+  tickMotor,
+  statusOf,
+  canEdit,
+  canSend,
+  createJointControls,
+} from "../src/domain/state";
+function connected() {
+  const motors = createMotors();
+  motors.forEach((m, i) => (m.joint = "test-joint-" + i));
+  return motors;
+}
+const model = JSON.parse(
+  fs.readFileSync(
+    new URL("../public/models/jax/model.json", import.meta.url),
+    "utf8",
+  ),
+) as RobotModel;
+test("14 motors have no guessed URDF mapping or fabricated servo feedback", () => {
+  const m = createMotors();
+  assert.equal(m.length, 14);
+  assert.equal(m.filter((m) => m.type === "ak").length, 4);
+  assert.equal(m.filter((m) => m.type === "servo").length, 10);
+  assert(m.every((m) => m.joint === ""));
+  assert(m.filter((m) => m.type === "servo").every((m) => m.current === null));
+});
+test("editing previews does not transmit or move current position", () => {
+  const m = connected()[0],
+    current = m.current;
+  m.draft = 14;
+  tickMotor(m, 0.1, false);
+  assert.equal(m.current, current);
+  assert.equal(m.sent, null);
+  assert(send(m, false).ok);
+  assert.equal(m.sent, 14);
+  tickMotor(m, 0.1, false);
+  assert(m.current! > current!);
+});
+test("range and empty input rejection do not change sent target", () => {
+  const m = connected()[0];
+  for (const value of ["", NaN, 16, -16, Infinity]) assert(!inRange(m, value));
+  m.draft = 16;
+  assert(!send(m, false).ok);
+  assert.equal(m.sent, null);
+});
+test("emergency, offline, motor error and send failure block commands", () => {
+  const m = connected()[0];
+  m.draft = 12;
+  assert(!send(m, true).ok);
+  for (const state of ["offline", "error", "failure"] as Scenario[]) {
+    m.scenario = state;
+    assert(!send(m, false).ok);
+    assert.equal(m.sent, null);
+  }
+  assert(m.error);
+  m.scenario = "normal";
+  assert(send(m, false).ok);
+  assert.equal(m.error, "");
+});
+test("stop freezes simulation and reset idle never resumes old motion", () => {
+  const m = connected()[0];
+  m.draft = -12;
+  send(m, false);
+  tickMotor(m, 0.1, false);
+  const pos = m.current;
+  tickMotor(m, 10, true);
+  assert.equal(m.current, pos);
+  m.status = "idle";
+  tickMotor(m, 10, false);
+  assert.equal(m.current, pos);
+});
+test("AK45 reaches target, servo only reports sent with unknown position", () => {
+  const [ak] = connected();
+  ak.draft = -14;
+  send(ak, false);
+  for (let i = 0; i < 100; i++) tickMotor(ak, 0.1, false);
+  assert.equal(ak.current, -14);
+  assert.equal(ak.status, "reached");
+  const servo = connected()[4];
+  servo.draft = 12;
+  assert(send(servo, false).ok);
+  tickMotor(servo, 100, false);
+  assert.equal(servo.current, null);
+  assert.equal(servo.status, "sent");
+  assert.match(statusOf(servo, false), /미확인/);
+});
+test("import retains 16 links, 14 revolute joints, valid tree and mesh files", () => {
+  assert.equal(model.links.length, 16);
+  assert.equal(model.joints.length, 15);
+  assert.equal(model.joints.filter((j) => j.type === "revolute").length, 14);
+  const links = new Set(model.links.map((l) => l.name));
+  for (const j of model.joints) {
+    assert(links.has(j.parent));
+    assert(links.has(j.child));
+  }
+  for (const l of model.links)
+    for (const v of l.visuals)
+      assert(
+        fs.existsSync(new URL("../public/models/jax/" + v.file, import.meta.url)),
+      );
+});
+test("URDF angular limits are converted to degrees without exceeding raw limits", () => {
+  for (const j of model.joints.filter((j) => j.type === "revolute")) {
+    const limits = limitsFor(j);
+    assert(limits.min <= limits.max);
+    assert((limits.min * Math.PI) / 180 >= j.limit!.lower - 1e-6);
+    assert((limits.max * Math.PI) / 180 <= j.limit!.upper + 1e-6);
+  }
+});
+
+test("unmapped motors cannot send a false movement success", () => {
+  const m = createMotors()[0];
+  m.draft = 12;
+  const result = send(m, false);
+  assert.equal(result.ok, false);
+  assert.match(result.message, /관절/);
+  assert.equal(m.sent, null);
+});
+
+test("unmapped motor allows editing but not sending; stop and faults still lock input", () => {
+  const m = createMotors()[0];
+  assert(canEdit(m, false));
+  assert(!canSend(m, false));
+  assert(!canEdit(m, true));
+  for (const scenario of ["offline", "error"] as Scenario[]) {
+    m.scenario = scenario;
+    assert(!canEdit(m, false));
+  }
+  m.scenario = "normal";
+  m.joint = "test";
+  assert(canSend(m, false));
+});
+
+test("URDF controls use every real revolute joint directly, with no hardware mapping step", () => {
+  const controls = createJointControls(model);
+  assert.equal(controls.length, 14);
+  assert.equal(new Set(controls.map((c) => c.joint)).size, 14);
+  for (const c of controls) {
+    assert(canEdit(c, false));
+    assert(canSend(c, false));
+    assert(
+      model.joints.some((j) => j.name === c.joint && j.type === "revolute"),
+    );
+    assert(inRange(c, c.draft));
+  }
+  const elbow = controls.find((c) => c.joint === "upper_arm_to_under_arm")!;
+  elbow.draft = 60;
+  assert(send(elbow, false).ok);
+  for (let i = 0; i < 100; i++) tickMotor(elbow, 0.1, false);
+  assert.equal(elbow.current, 60);
+  assert.equal(elbow.status, "reached");
+});

@@ -2,13 +2,38 @@
 
 Team JAX의 로봇 제어 UI 프로토타입입니다. AK45 4개와 STM32 서보 10개를 한 화면에서 관리하고, 제공된 JAX V2 URDF로 목표 자세를 미리 확인합니다. Foxglove의 패널 기반 구성을 참고했습니다.
 
-## 실행
+## 기술 스택 및 실행
+
+React 19 + TypeScript 5 + Vite 7 기반입니다. 3D 뷰어는 Three.js와 React Three Fiber 9 / Drei 10을 사용합니다. UI는 React 컴포넌트로 구성하고, 관절·모터·시퀀스 모델은 엄격한 TypeScript 타입으로 관리합니다. 숫자·그래프 갱신은 React 상태 구독으로 처리하고, 관절 회전은 프레임 루프에서 갱신합니다.
+
+Node.js 20.19 이상 또는 22.12 이상과 WebGL 지원 브라우저가 필요합니다.
 
 ```sh
+npm ci
 npm run dev
 ```
 
-http://localhost:5173 에서 확인합니다. 개발 서버는 캐시를 비활성화해 수정한 JavaScript가 이전 버전으로 남지 않게 합니다. Python 3와 최신 WebGL 지원 브라우저가 필요합니다. 실행 시 패키지 설치나 인터넷 연결은 필요하지 않습니다. Three.js 0.180.0과 로더를 `dist/vendor/three`에 포함했습니다. 의존성을 다시 설치할 때는 `npm ci`를 사용합니다.
+http://localhost:5173 에서 확인합니다. 최초 설치에는 인터넷이 필요하며, 설치 후에는 모델과 라이브러리를 로컬에서 사용합니다. Vite가 변경사항을 자동 반영하므로 이전의 Python 개발 서버나 수동 캐시 버전 문자열은 사용하지 않습니다. 5173 포트가 사용 중이면 기존 서버를 종료하거나 `npm run dev -- --port 5174`로 실행합니다.
+
+프로덕션 빌드와 확인:
+
+```sh
+npm run build
+npm run preview
+```
+
+프리뷰 주소는 http://localhost:4173 입니다. `dist/`는 생성된 배포 파일이며 Git에는 포함하지 않습니다. 정적 웹 서버에 이 폴더를 배포할 수 있습니다.
+
+## 소스 구조
+
+- `src/components/`: 모터 목록, 제어 패널, R3F 3D 뷰어, 그래프, 시퀀스 편집, 모달
+- `src/domain/`: 타입 정의, 관절 계산, 모터 상태, 시퀀스 엔진, URDF 검증, 대시보드 컨트롤러
+- `src/hooks/`: React 상태 구독 및 애니메이션·모델 로딩 수명 관리
+- `public/models/jax/`: 원본 URDF, 변환 JSON, DAE 시각 메시
+- `tests/`: TypeScript 기반 Node 테스트
+- `scripts/import-model.py`: 모델 파일 재생성용 Python 도구
+
+기존 `jax-model-sequence-v1`, `jax-joint-mappings-v1` 저장 키를 유지하므로 같은 브라우저와 주소에서 저장한 설정을 복원합니다. 출처(호스트 또는 포트)를 바꾸면 브라우저 저장 공간도 달라집니다.
 
 ## 기본 화면: URDF 관절 직접 제어
 
@@ -64,19 +89,22 @@ STM32 서보는 실제 각도·속도·전류·온도 피드백을 생성하지 
 
 ## 모델 출처 및 재생성
 
-사용자가 제공한 `Downloads/URDF_1006/JAXV2_Assembly_description`의 모델입니다. 원본 URDF와 16개 DAE 시각 메시가 `dist/models/jax/`에 포함됩니다. 충돌 메시와 ROS 실행 설정은 브라우저 시각화에 사용하지 않습니다.
+사용자가 제공한 `Downloads/URDF_1006/JAXV2_Assembly_description`의 모델입니다. 원본 URDF와 16개 DAE 시각 메시가 `public/models/jax/`에 포함됩니다. 충돌 메시와 ROS 실행 설정은 브라우저 시각화에 사용하지 않습니다.
 
 ```sh
 python3 scripts/import-model.py /path/to/JAXV2_Assembly_description
 ```
 
-원본 URDF에서 링크, 관절, 변환, 회전축, 각도 제한을 읽어 `model.json`을 생성합니다. Collada의 Z-up 변환을 URDF 좌표계에 맞춰 처리합니다. Three.js의 MIT 라이선스는 `dist/vendor/three/LICENSE`에 포함되어 있습니다.
+원본 URDF에서 링크, 관절, 변환, 회전축, 각도 제한을 읽어 `model.json`을 생성합니다. Collada의 Z-up 변환을 URDF 좌표계에 맞춰 처리합니다. 라이브러리는 npm 의존성과 잠금 파일로 관리하며, Three.js의 MIT 라이선스는 설치 패키지에 포함됩니다.
 
 ## 검증
 
 ```sh
 npm run check
 npm test
+npm run build
 ```
 
 상태 로직 테스트는 입력과 전송 분리, 서보 피드백 미생성, 각도 범위, 긴급 정지, 연결 끊김·오류·전송 실패, 목표 도달, URDF 자산 및 각도 제한을 검증합니다. 관절 연결 누락 시 전송 차단과 도→라디안 변환, 실제 URDF 관절 회전에 따른 하위 링크 위치 변화도 검증합니다.
+
+TypeScript strict 검사는 컴포넌트·도메인·테스트에 적용됩니다. 기존 동작 테스트와 React 컨트롤러의 저장 복원·제어 잠금·잘못된 입력 처리 테스트를 함께 실행합니다.

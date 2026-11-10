@@ -7,3 +7,7 @@ node_modules/
 
 # Local visual verification
 artifacts/
+
+# Vite build output
+dist/
+*.tsbuildinfo
